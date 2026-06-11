@@ -104,20 +104,44 @@ class User {
       );
 }
 
+class Fleet {
+  final int? id;
+  final String licensePlate;
+  final String busModel;
+
+  Fleet({this.id, required this.licensePlate, required this.busModel});
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'license_plate': licensePlate,
+        'bus_model': busModel,
+      };
+
+  factory Fleet.fromMap(Map<String, dynamic> map) => Fleet(
+        id: map['id'] as int?,
+        licensePlate: map['license_plate'] as String,
+        busModel: map['bus_model'] as String,
+      );
+}
+
 class Student {
   final int? id;
   final String name;
+  final String birthDate;
+  final String schoolName;
   final bool active;
   final int userId;
   final int companyId;
   final int addressId;
   final int collegeId;
 
-  Student({this.id, required this.name, required this.active, required this.userId, required this.companyId, required this.addressId, required this.collegeId});
+  Student({this.id, required this.name, required this.birthDate, required this.schoolName, required this.active, required this.userId, required this.companyId, required this.addressId, required this.collegeId});
 
   Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,
+        'birth_date': birthDate,
+        'school_name': schoolName,
         'active': active ? 1 : 0,
         'user_id': userId,
         'company_id': companyId,
@@ -128,6 +152,8 @@ class Student {
   factory Student.fromMap(Map<String, dynamic> map) => Student(
         id: map['id'] as int?,
         name: map['name'] as String,
+        birthDate: map['birth_date'] as String? ?? '',
+        schoolName: map['school_name'] as String? ?? '',
         active: (map['active'] as int) == 1,
         userId: map['user_id'] as int,
         companyId: map['company_id'] as int,
@@ -163,15 +189,17 @@ class Driver {
   final int? id;
   final String name;
   final String driverLicense;
+  final String birthDate;
   final int userId;
   final int companyId;
 
-  Driver({this.id, required this.name, required this.driverLicense, required this.userId, required this.companyId});
+  Driver({this.id, required this.name, required this.driverLicense, required this.birthDate, required this.userId, required this.companyId});
 
   Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,
         'driver_license': driverLicense,
+        'birth_date': birthDate,
         'user_id': userId,
         'company_id': companyId,
       };
@@ -180,6 +208,7 @@ class Driver {
         id: map['id'] as int?,
         name: map['name'] as String,
         driverLicense: map['driver_license'] as String,
+        birthDate: map['birth_date'] as String? ?? '',
         userId: map['user_id'] as int,
         companyId: map['company_id'] as int,
       );
@@ -197,7 +226,21 @@ class DatabaseHelper {
   Future<Database> _initDb() async {
     final dir = await getApplicationDocumentsDirectory();
     final path = p.join(dir.path, 'app.sqlite');
-    return await openDatabase(path, version: 1, onCreate: _onCreate);
+    return await openDatabase(path, version: 2, onCreate: _onCreate, onUpgrade: _onUpgrade);
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('DROP TABLE IF EXISTS drivers');
+      await db.execute('DROP TABLE IF EXISTS managers');
+      await db.execute('DROP TABLE IF EXISTS students');
+      await db.execute('DROP TABLE IF EXISTS fleets');
+      await db.execute('DROP TABLE IF EXISTS users');
+      await db.execute('DROP TABLE IF EXISTS colleges');
+      await db.execute('DROP TABLE IF EXISTS companies');
+      await db.execute('DROP TABLE IF EXISTS addresses');
+      await _onCreate(db, newVersion);
+    }
   }
 
   Future _onCreate(Database db, int version) async {
@@ -239,9 +282,18 @@ class DatabaseHelper {
       );
     ''');
     await db.execute('''
+      CREATE TABLE fleets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_plate TEXT NOT NULL,
+        bus_model TEXT NOT NULL
+      );
+    ''');
+    await db.execute('''
       CREATE TABLE students (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
+        birth_date TEXT,
+        school_name TEXT,
         active INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
         company_id INTEGER NOT NULL,
@@ -268,6 +320,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         driver_license TEXT NOT NULL,
+        birth_date TEXT,
         user_id INTEGER NOT NULL,
         company_id INTEGER NOT NULL,
         FOREIGN KEY(user_id) REFERENCES users(id),
@@ -355,6 +408,12 @@ class DatabaseHelper {
     return await db.insert('students', student.toMap());
   }
 
+  Future<List<Student>> getAllStudents() async {
+    final db = await database;
+    final maps = await db.query('students');
+    return maps.map((m) => Student.fromMap(m)).toList();
+  }
+
   Future<List<Student>> getStudentsByCollege(int collegeId) async {
     final db = await database;
     final maps = await db.query('students', where: 'college_id = ?', whereArgs: [collegeId]);
@@ -371,6 +430,24 @@ class DatabaseHelper {
   Future<int> createDriver(Driver driver) async {
     final db = await database;
     return await db.insert('drivers', driver.toMap());
+  }
+
+  Future<List<Driver>> getAllDrivers() async {
+    final db = await database;
+    final maps = await db.query('drivers');
+    return maps.map((m) => Driver.fromMap(m)).toList();
+  }
+
+  // ---------- Fleet CRUD ----------
+  Future<int> createFleet(Fleet fleet) async {
+    final db = await database;
+    return await db.insert('fleets', fleet.toMap());
+  }
+
+  Future<List<Fleet>> getAllFleets() async {
+    final db = await database;
+    final maps = await db.query('fleets');
+    return maps.map((m) => Fleet.fromMap(m)).toList();
   }
 
 // ---------- Seed admin ----------
