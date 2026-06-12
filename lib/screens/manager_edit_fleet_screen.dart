@@ -1,45 +1,59 @@
 import 'package:flutter/material.dart';
 import '../database/app_database.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-class ManagerCreateFleetScreen extends StatefulWidget {
-  const ManagerCreateFleetScreen({super.key});
+
+class ManagerEditFleetScreen extends StatefulWidget {
+  final Fleet fleet;
+  const ManagerEditFleetScreen({required this.fleet, super.key});
 
   @override
-  State<ManagerCreateFleetScreen> createState() => _ManagerCreateFleetScreenState();
+  State<ManagerEditFleetScreen> createState() => _ManagerEditFleetScreenState();
 }
 
-class _ManagerCreateFleetScreenState extends State<ManagerCreateFleetScreen> {
+class _ManagerEditFleetScreenState extends State<ManagerEditFleetScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _licensePlateController = TextEditingController();
-  final _busModelController = TextEditingController();
-  // Mercosul plate mask: AAA-9A99
-  final _plateMask = MaskTextInputFormatter(
-    mask: 'AAA-9A99',
-    filter: {
-      'A': RegExp(r'[A-Z]'),
-      '9': RegExp(r'[0-9]'),
-    },
-    type: MaskAutoCompletionType.lazy,
-  );
+  late final TextEditingController _licensePlateController;
+  final TextEditingController _busModelController = TextEditingController();
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  late final MaskTextInputFormatter _plateMask;
+  @override
+  void initState() {
+    super.initState();
+    _plateMask = MaskTextInputFormatter(
+      mask: 'AAA-9A99',
+      filter: {
+        'A': RegExp(r'[A-Z]'),
+        '9': RegExp(r'[0-9]'),
+      },
 
-  Future<void> _saveFleet() async {
+    );
+    final formatted = _plateMask.maskText(widget.fleet.licensePlate);
+    _licensePlateController = TextEditingController(text: formatted);
+    _licensePlateController.selection = TextSelection.collapsed(offset: formatted.length);
+    _busModelController.text = widget.fleet.busModel;
+  }
+
+  Future<void> _updateFleet() async {
     if (_formKey.currentState!.validate()) {
-      // Check for duplicate license plate
-      final existing = await _dbHelper.getFleetByPlate(_licensePlateController.text);
-      if (existing != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Placa já cadastrada.')),);
-        return;
-      }
-      final fleet = Fleet(
+      final updatedFleet = Fleet(
+        id: widget.fleet.id,
         licensePlate: _licensePlateController.text,
         busModel: _busModelController.text,
       );
-      await _dbHelper.createFleet(fleet);
+      // Check for duplicate license plate if changed
+      final existing = await _dbHelper.getFleetByPlate(_licensePlateController.text);
+      if (existing != null && existing.id != widget.fleet.id) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Placa já cadastrada.')),
+        );
+        return;
+      }
+
+      await _dbHelper.updateFleet(updatedFleet);
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Veículo salvo com sucesso!')),
+          const SnackBar(content: Text('Veículo atualizado com sucesso!')),
         );
         Navigator.pop(context);
       }
@@ -56,7 +70,7 @@ class _ManagerCreateFleetScreenState extends State<ManagerCreateFleetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Criar Frota')),
+      appBar: AppBar(title: const Text('Editar Frota')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -78,8 +92,8 @@ class _ManagerCreateFleetScreenState extends State<ManagerCreateFleetScreen> {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: _saveFleet,
-                child: const Text('Salvar'),
+                onPressed: _updateFleet,
+                child: const Text('Salvar Alterações'),
               ),
             ],
           ),

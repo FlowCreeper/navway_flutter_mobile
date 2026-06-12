@@ -3,7 +3,6 @@ import 'package:navway_flutter_mobile/database/app_database.dart';
 import 'package:navway_flutter_mobile/screens/driver_home_screen.dart';
 import 'package:navway_flutter_mobile/screens/manager_home_screen.dart';
 import 'package:navway_flutter_mobile/screens/student_home_screen.dart';
-import 'package:navway_flutter_mobile/models/user.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

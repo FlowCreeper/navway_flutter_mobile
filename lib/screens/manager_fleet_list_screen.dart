@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../database/app_database.dart';
 import 'manager_create_fleet_screen.dart';
+import 'manager_edit_fleet_screen.dart';
 
 class ManagerFleetListScreen extends StatefulWidget {
   const ManagerFleetListScreen({super.key});
@@ -42,6 +43,49 @@ class _ManagerFleetListScreenState extends State<ManagerFleetListScreen> {
                   leading: const Icon(Icons.directions_bus),
                   title: Text(fleet.licensePlate),
                   subtitle: Text(fleet.busModel),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ManagerEditFleetScreen(fleet: fleet),
+                            ),
+                          );
+                          _loadFleets();
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Confirmar exclusão'),
+                              content: const Text('Deseja realmente excluir este veículo?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancelar'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Excluir'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await _dbHelper.deleteFleet(fleet.id!);
+                            _loadFleets();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 );
               },
             ),

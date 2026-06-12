@@ -226,20 +226,20 @@ class DatabaseHelper {
   Future<Database> _initDb() async {
     final dir = await getApplicationDocumentsDirectory();
     final path = p.join(dir.path, 'app.sqlite');
-    return await openDatabase(path, version: 2, onCreate: _onCreate, onUpgrade: _onUpgrade);
+    return await openDatabase(path, version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute('DROP TABLE IF EXISTS drivers');
-      await db.execute('DROP TABLE IF EXISTS managers');
-      await db.execute('DROP TABLE IF EXISTS students');
+    if (oldVersion < 3) {
       await db.execute('DROP TABLE IF EXISTS fleets');
-      await db.execute('DROP TABLE IF EXISTS users');
-      await db.execute('DROP TABLE IF EXISTS colleges');
-      await db.execute('DROP TABLE IF EXISTS companies');
-      await db.execute('DROP TABLE IF EXISTS addresses');
-      await _onCreate(db, newVersion);
+      await db.execute('''
+        CREATE TABLE fleets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          license_plate TEXT NOT NULL,
+          bus_model TEXT NOT NULL
+        );
+      ''');
+      await db.execute('CREATE UNIQUE INDEX idx_fleet_license_plate ON fleets(license_plate);');
     }
   }
 
@@ -287,6 +287,7 @@ class DatabaseHelper {
         license_plate TEXT NOT NULL,
         bus_model TEXT NOT NULL
       );
+      CREATE UNIQUE INDEX idx_fleet_license_plate ON fleets(license_plate);
     ''');
     await db.execute('''
       CREATE TABLE students (
@@ -448,6 +449,23 @@ class DatabaseHelper {
     final db = await database;
     final maps = await db.query('fleets');
     return maps.map((m) => Fleet.fromMap(m)).toList();
+  }
+
+  Future<Fleet?> getFleetByPlate(String plate) async {
+    final db = await database;
+    final maps = await db.query('fleets', where: 'license_plate = ?', whereArgs: [plate]);
+    if (maps.isEmpty) return null;
+    return Fleet.fromMap(maps.first);
+  }
+
+  Future<int> updateFleet(Fleet fleet) async {
+    final db = await database;
+    return await db.update('fleets', fleet.toMap(), where: 'id = ?', whereArgs: [fleet.id]);
+  }
+
+  Future<int> deleteFleet(int id) async {
+    final db = await database;
+    return await db.delete('fleets', where: 'id = ?', whereArgs: [id]);
   }
 
 // ---------- Seed admin ----------
